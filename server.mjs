@@ -136,6 +136,52 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Zapier / Make.com direct lead endpoint — bypasses leads_retrieval permission
+  if (req.method === 'POST' && url.pathname === '/lead') {
+    let body = '';
+    req.on('data', c => body += c);
+    req.on('end', async () => {
+      res.writeHead(200); res.end('OK');
+      try {
+        const fields = JSON.parse(body);
+        const fullName  = fields['full_name'] || `${fields['first_name'] ?? ''} ${fields['last_name'] ?? ''}`.trim() || 'Unknown';
+        const firstName = fields['first_name'] || fullName.split(' ')[0] || 'there';
+        const phone     = fields['phone_number'] || fields['phone'] || '';
+        const email     = fields['email'] || 'N/A';
+        const time      = new Date().toLocaleString('en-US', { timeZone: 'America/New_York' });
+
+        const tgMsg =
+          `🔔 <b>NEW LEAD — VMG AI Receptionist</b>\n\n` +
+          `👤 <b>${fullName}</b>\n` +
+          `📞 <b>${phone || 'N/A'}</b>\n` +
+          `📧 ${email}\n\n` +
+          `🕐 ${time} ET\n\n` +
+          `<i>Call within 5 minutes — warm leads convert 4x better</i>`;
+
+        const tg = await sendTelegram(tgMsg);
+        if (tg.ok) console.log(`Telegram sent via /lead endpoint`);
+        else console.error('Telegram error:', JSON.stringify(tg));
+
+        const e164 = phone ? normalizePhone(phone) : null;
+        if (e164) {
+          const smsText = `Hey ${firstName}! You just requested a free VMG AI Receptionist demo — we're calling you in the next few minutes. Talk soon!`;
+          try {
+            const sms = await sendSMS(e164, smsText);
+            if (sms.data?.id) console.log(`SMS sent to ${e164} via /lead endpoint`);
+            else console.error('SMS error:', JSON.stringify(sms));
+          } catch (e) {
+            console.error('SMS exception:', e.message);
+          }
+        } else {
+          console.log('No phone in /lead payload — SMS skipped');
+        }
+      } catch (e) {
+        console.error('/lead handler error:', e.message);
+      }
+    });
+    return;
+  }
+
   res.writeHead(200); res.end('VMG Leads Webhook — running');
 });
 
