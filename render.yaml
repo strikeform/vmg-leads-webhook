@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: vmg-leads-webhook
+    runtime: node
+    plan: free
+    buildCommand: ""
+    startCommand: node server.mjs
+    envVars:
+      - key: FB_VERIFY_TOKEN
+        value: vmg_leads_2026
+      - key: TELNYX_FROM
+        value: "+17813276498"
+      - key: FB_SYSTEM_TOKEN
+        sync: false
+      - key: TG_BOT_TOKEN
+        sync: false
+      - key: TG_CHAT_ID
+        sync: false
+      - key: TELNYX_API_KEY
+        sync: false
